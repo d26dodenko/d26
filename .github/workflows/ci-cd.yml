@@ -1,28 +1,29 @@
-name: CI/CD Pipeline
+name: Deploy to Beget via SFTP
 
 on:
   push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
+    branches: [ "master" ]
 
 jobs:
-  test:
+  deploy:
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Deploy via SFTP
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
       with:
-        node-version: '18'
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Run tests
-      run: npm test
-      
-    - name: Build project
-      run: npm run build
+        server: ${{ secrets.BEGET_HOST }}
+        username: ${{ secrets.BEGET_USERNAME }}
+        password: ${{ secrets.BEGET_PASSWORD }}
+        local-dir: ./ # Что загружаем (всё из репозитория)
+        server-dir: ${{ secrets.BEGET_DEPLOY_PATH }} # Куда загружаем
+        # Опциональные настройки для безопасности и очистки:
+        dangerous-clean-slate: false # Не удалять всё на сервере перед заливкой
+        exclude: |
+          **/.git*
+          **/.gitignore
+          **/.github
+          README.md
