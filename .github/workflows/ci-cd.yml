@@ -1,29 +1,41 @@
-name: Deploy to Beget via SFTP
+name: Deploy to Beget
 
 on:
   push:
     branches: [ "master" ]
+  workflow_dispatch: # Позволяет запускать вручную из интерфейса GitHub
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
-    - name: Deploy via SFTP
+    
+    # Шаг отладки - проверяем, что секреты загружены (они не покажутся в логах, но мы увидим если их нет)
+    - name: Debug - Check if secrets are set
+      run: |
+        echo "BEGET_HOST is set: ${{ secrets.BEGET_HOST != '' && 'YES' || 'NO' }}"
+        echo "BEGET_USERNAME is set: ${{ secrets.BEGET_USERNAME != '' && 'YES' || 'NO' }}"
+        echo "BEGET_PASSWORD is set: ${{ secrets.BEGET_PASSWORD != '' && 'YES' || 'NO' }}"
+        echo "BEGET_DEPLOY_PATH is set: ${{ secrets.BEGET_DEPLOY_PATH != '' && 'YES' || 'NO' }}"
+    
+    - name: Deploy to Beget via FTP
       uses: SamKirkland/FTP-Deploy-Action@v4.3.5
       with:
         server: ${{ secrets.BEGET_HOST }}
         username: ${{ secrets.BEGET_USERNAME }}
         password: ${{ secrets.BEGET_PASSWORD }}
-        local-dir: ./ # Что загружаем (всё из репозитория)
-        server-dir: ${{ secrets.BEGET_DEPLOY_PATH }} # Куда загружаем
-        # Опциональные настройки для безопасности и очистки:
-        dangerous-clean-slate: false # Не удалять всё на сервере перед заливкой
+        local-dir: ./
+        server-dir: ${{ secrets.BEGET_DEPLOY_PATH }}
+        # Дополнительные настройки для безопасности:
+        server-dir: "./"  # Относительный путь на сервере
+        # Исключаем ненужные файлы:
         exclude: |
           **/.git*
           **/.gitignore
           **/.github
-          README.md
+          **/README.md
+          **/*.md
+          **/deploy.yml
