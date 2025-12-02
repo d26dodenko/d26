@@ -1,0 +1,13 @@
+* {
+  margin: 0;
+  padding: 0;
+}
+.main {
+  background-color: rgb(222, 222, 222);
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  justify-items: center;
+}
