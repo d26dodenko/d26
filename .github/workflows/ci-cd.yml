@@ -1,4 +1,4 @@
-name: Debug Secrets
+name: DebugSecrets
 
 on: workflow_dispatch
 
