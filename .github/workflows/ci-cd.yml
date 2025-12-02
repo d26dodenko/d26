@@ -1,30 +1,70 @@
-name: DebugSecrets
+name: CI/CD to Beget
 
-on: workflow_dispatch
+on:
+  push:
+    branches: [ "master" ]
+  workflow_dispatch:
 
 jobs:
-  debug:
+  deploy:
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Check all secrets
-        run: |
-          echo "=== Проверка секретов ==="
-          echo "Количество секретов: ${{ secrets.size }}"
-          echo ""
-          echo "BEGET_HOST: ${{ secrets.BEGET_HOST != '' && 'УСТАНОВЛЕН' || 'НЕ УСТАНОВЛЕН' }}"
-          echo "BEGET_USERNAME: ${{ secrets.BEGET_USERNAME != '' && 'УСТАНОВЛЕН' || 'НЕ УСТАНОВЛЕН' }}"
-          echo "BEGET_PASSWORD: ${{ secrets.BEGET_PASSWORD != '' && 'УСТАНОВЛЕН' || 'НЕ УСТАНОВЛЕН' }}"
-          echo "BEGET_DEPLOY_PATH: ${{ secrets.BEGET_DEPLOY_PATH != '' && 'УСТАНОВЛЕН' || 'НЕ УСТАНОВЛЕН' }}"
-          
-          echo ""
-          echo "=== Проверка значений (без отображения самих значений) ==="
-          echo "Длина BEGET_HOST: ${#{{ secrets.BEGET_HOST }}} символов"
-          echo "Длина BEGET_USERNAME: ${#{{ secrets.BEGET_USERNAME }}} символов"
-          echo "Длина BEGET_PASSWORD: ${#{{ secrets.BEGET_PASSWORD }}} символов"
-          echo "Длина BEGET_DEPLOY_PATH: ${#{{ secrets.BEGET_DEPLOY_PATH }}} символов"
-          
-          echo ""
-          echo "=== Инструкция ==="
-          echo "Если любой секрет показывает 0 символов - его значение пустое!"
-          echo "Зайдите в: Settings → Secrets and variables → Actions"
-          echo "Удалите пустые секреты и создайте заново с правильными значениями"
+    # 1. Получаем код
+    - uses: actions/checkout@v4
+    
+    # 2. Проверяем, что секреты НЕ пустые
+    - name: Validate secrets before deployment
+      id: validate-secrets
+      run: |
+        # Проверяем каждый секрет
+        if [ -z "${{ secrets.BEGET_HOST }}" ]; then
+          echo "❌ ERROR: BEGET_HOST is empty or not set!"
+          echo "Please set it in: Settings → Secrets → Actions"
+          echo "Value should be: server.beget.com or your domain"
+          exit 1
+        fi
+        
+        if [ -z "${{ secrets.BEGET_USERNAME }}" ]; then
+          echo "❌ ERROR: BEGET_USERNAME is empty or not set!"
+          exit 1
+        fi
+        
+        if [ -z "${{ secrets.BEGET_PASSWORD }}" ]; then
+          echo "❌ ERROR: BEGET_PASSWORD is empty or not set!"
+          exit 1
+        fi
+        
+        # Если BEGET_DEPLOY_PATH пустой, устанавливаем значение по умолчанию
+        if [ -z "${{ secrets.BEGET_DEPLOY_PATH }}" ]; then
+          echo "⚠️ WARNING: BEGET_DEPLOY_PATH not set, using default './'"
+          echo "DEPLOY_PATH=./" >> $GITHUB_ENV
+        else
+          echo "DEPLOY_PATH=${{ secrets.BEGET_DEPLOY_PATH }}" >> $GITHUB_ENV
+        fi
+        
+        echo "✅ All secrets are valid"
+    
+    # 3. Деплой с использованием проверенных значений
+    - name: Deploy to Beget FTP
+      if: steps.validate-secrets.outcome == 'success'
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      with:
+        server: ${{ secrets.BEGET_HOST }}
+        username: ${{ secrets.BEGET_USERNAME }}
+        password: ${{ secrets.BEGET_PASSWORD }}
+        local-dir: "./"
+        server-dir: ${{ env.DEPLOY_PATH || './' }}
+        exclude: |
+          **/.git*
+          **/.github/
+          **/README.md
+          **/*.md
+        dangerous-clean-slate: false
+    
+    # 4. Завершение
+    - name: Success
+      if: success()
+      run: |
+        echo "🎉 Deployment completed!"
+        echo "Site should be live now"
