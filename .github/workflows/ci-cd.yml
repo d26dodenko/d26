@@ -1,39 +1,69 @@
-name: Deploy to Beget
+name: CI/CD to Beget
 
 on:
   push:
     branches: [ "master" ]
-  workflow_dispatch: # Позволяет запускать вручную из интерфейса GitHub
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    # 1. Получаем код из репозитория
+    - uses: actions/checkout@v4
     
-    # Шаг отладки - проверяем, что секреты загружены (они не покажутся в логах, но мы увидим если их нет)
-    - name: Debug - Check if secrets are set
+    # 2. Отображаем информацию о секретах (без их значений)
+    - name: Show debug info
       run: |
-        echo "BEGET_HOST is set: ${{ secrets.BEGET_HOST != '' && 'YES' || 'NO' }}"
-        echo "BEGET_USERNAME is set: ${{ secrets.BEGET_USERNAME != '' && 'YES' || 'NO' }}"
-        echo "BEGET_PASSWORD is set: ${{ secrets.BEGET_PASSWORD != '' && 'YES' || 'NO' }}"
-        echo "BEGET_DEPLOY_PATH is set: ${{ secrets.BEGET_DEPLOY_PATH != '' && 'YES' || 'NO' }}"
+        echo "Repository: ${{ github.repository }}"
+        echo "Event: ${{ github.event_name }}"
+        echo "Branch: ${{ github.ref }}"
+        echo "Actor: ${{ github.actor }}"
+        
+        # Проверяем наличие секретов
+        if [ -z "${{ secrets.BEGET_HOST }}" ]; then
+          echo "❌ CRITICAL: BEGET_HOST secret is missing!"
+          echo "Please add it in: Settings → Secrets and variables → Actions"
+          echo "Name: BEGET_HOST"
+          echo "Value: server.beget.com (or your domain)"
+        else
+          echo "✅ BEGET_HOST is set"
+        fi
+        
+        if [ -z "${{ secrets.BEGET_USERNAME }}" ]; then
+          echo "❌ BEGET_USERNAME secret is missing!"
+        else
+          echo "✅ BEGET_USERNAME is set"
+        fi
+        
+        if [ -z "${{ secrets.BEGET_PASSWORD }}" ]; then
+          echo "❌ BEGET_PASSWORD secret is missing!"
+        else
+          echo "✅ BEGET_PASSWORD is set"
+        fi
+        
+        if [ -z "${{ secrets.BEGET_DEPLOY_PATH }}" ]; then
+          echo "⚠️ BEGET_DEPLOY_PATH is not set, using default './'"
+        else
+          echo "✅ BEGET_DEPLOY_PATH is set"
+        fi
     
-    - name: Deploy to Beget via FTP
+    # 3. Загружаем файлы на Beget
+    - name: Deploy files to Beget
       uses: SamKirkland/FTP-Deploy-Action@v4.3.5
       with:
         server: ${{ secrets.BEGET_HOST }}
         username: ${{ secrets.BEGET_USERNAME }}
         password: ${{ secrets.BEGET_PASSWORD }}
-        local-dir: ./
-        server-dir: ${{ secrets.BEGET_DEPLOY_PATH }}  # Убедитесь, что это относительный путь с точки зрения FTP-сервера
-        # Исключаем ненужные файлы:
+        local-dir: "./"
+        server-dir: ${{ secrets.BEGET_DEPLOY_PATH || './' }}
         exclude: |
           **/.git*
-          **/.gitignore
-          **/.github
+          **/.github/
           **/README.md
           **/*.md
-          **/deploy.yml
+          **/.gitignore
+        # Дополнительные настройки
+        dangerous-clean-slate: false
+        dry-run: false
