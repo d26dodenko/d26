@@ -1,69 +1,30 @@
-name: CI/CD to Beget
+name: Debug Secrets
 
-on:
-  push:
-    branches: [ "master" ]
-  workflow_dispatch:
+on: workflow_dispatch
 
 jobs:
-  deploy:
+  debug:
     runs-on: ubuntu-latest
-    
     steps:
-    # 1. Получаем код из репозитория
-    - uses: actions/checkout@v4
-    
-    # 2. Отображаем информацию о секретах (без их значений)
-    - name: Show debug info
-      run: |
-        echo "Repository: ${{ github.repository }}"
-        echo "Event: ${{ github.event_name }}"
-        echo "Branch: ${{ github.ref }}"
-        echo "Actor: ${{ github.actor }}"
-        
-        # Проверяем наличие секретов
-        if [ -z "${{ secrets.BEGET_HOST }}" ]; then
-          echo "❌ CRITICAL: BEGET_HOST secret is missing!"
-          echo "Please add it in: Settings → Secrets and variables → Actions"
-          echo "Name: BEGET_HOST"
-          echo "Value: server.beget.com (or your domain)"
-        else
-          echo "✅ BEGET_HOST is set"
-        fi
-        
-        if [ -z "${{ secrets.BEGET_USERNAME }}" ]; then
-          echo "❌ BEGET_USERNAME secret is missing!"
-        else
-          echo "✅ BEGET_USERNAME is set"
-        fi
-        
-        if [ -z "${{ secrets.BEGET_PASSWORD }}" ]; then
-          echo "❌ BEGET_PASSWORD secret is missing!"
-        else
-          echo "✅ BEGET_PASSWORD is set"
-        fi
-        
-        if [ -z "${{ secrets.BEGET_DEPLOY_PATH }}" ]; then
-          echo "⚠️ BEGET_DEPLOY_PATH is not set, using default './'"
-        else
-          echo "✅ BEGET_DEPLOY_PATH is set"
-        fi
-    
-    # 3. Загружаем файлы на Beget
-    - name: Deploy files to Beget
-      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-      with:
-        server: ${{ secrets.BEGET_HOST }}
-        username: ${{ secrets.BEGET_USERNAME }}
-        password: ${{ secrets.BEGET_PASSWORD }}
-        local-dir: "./"
-        server-dir: ${{ secrets.BEGET_DEPLOY_PATH || './' }}
-        exclude: |
-          **/.git*
-          **/.github/
-          **/README.md
-          **/*.md
-          **/.gitignore
-        # Дополнительные настройки
-        dangerous-clean-slate: false
-        dry-run: false
+      - name: Check all secrets
+        run: |
+          echo "=== Проверка секретов ==="
+          echo "Количество секретов: ${{ secrets.size }}"
+          echo ""
+          echo "BEGET_HOST: ${{ secrets.BEGET_HOST != '' && 'УСТАНОВЛЕН' || 'НЕ УСТАНОВЛЕН' }}"
+          echo "BEGET_USERNAME: ${{ secrets.BEGET_USERNAME != '' && 'УСТАНОВЛЕН' || 'НЕ УСТАНОВЛЕН' }}"
+          echo "BEGET_PASSWORD: ${{ secrets.BEGET_PASSWORD != '' && 'УСТАНОВЛЕН' || 'НЕ УСТАНОВЛЕН' }}"
+          echo "BEGET_DEPLOY_PATH: ${{ secrets.BEGET_DEPLOY_PATH != '' && 'УСТАНОВЛЕН' || 'НЕ УСТАНОВЛЕН' }}"
+          
+          echo ""
+          echo "=== Проверка значений (без отображения самих значений) ==="
+          echo "Длина BEGET_HOST: ${#{{ secrets.BEGET_HOST }}} символов"
+          echo "Длина BEGET_USERNAME: ${#{{ secrets.BEGET_USERNAME }}} символов"
+          echo "Длина BEGET_PASSWORD: ${#{{ secrets.BEGET_PASSWORD }}} символов"
+          echo "Длина BEGET_DEPLOY_PATH: ${#{{ secrets.BEGET_DEPLOY_PATH }}} символов"
+          
+          echo ""
+          echo "=== Инструкция ==="
+          echo "Если любой секрет показывает 0 символов - его значение пустое!"
+          echo "Зайдите в: Settings → Secrets and variables → Actions"
+          echo "Удалите пустые секреты и создайте заново с правильными значениями"
