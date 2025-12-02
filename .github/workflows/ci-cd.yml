@@ -28,9 +28,7 @@ jobs:
         username: ${{ secrets.BEGET_USERNAME }}
         password: ${{ secrets.BEGET_PASSWORD }}
         local-dir: ./
-        server-dir: ${{ secrets.BEGET_DEPLOY_PATH }}
-        # Дополнительные настройки для безопасности:
-        server-dir: "./"  # Относительный путь на сервере
+        server-dir: ${{ secrets.BEGET_DEPLOY_PATH }}  # Убедитесь, что это относительный путь с точки зрения FTP-сервера
         # Исключаем ненужные файлы:
         exclude: |
           **/.git*
