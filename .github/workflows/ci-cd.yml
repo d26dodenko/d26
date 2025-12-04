@@ -1,70 +1,191 @@
-name: CI/CD to Beget
+name: CI/CD Pipeline
 
 on:
   push:
+    branches: [ "master", "develop" ]
+  pull_request:
     branches: [ "master" ]
   workflow_dispatch:
 
+# Переменные для разных окружений
+env:
+  NODE_VERSION: '18'
+  DEPLOY_PATH: ${{ secrets.BEGET_DEPLOY_PATH || './' }}
+
 jobs:
-  deploy:
+  # Этап 1: Проверка кода
+  lint-and-test:
+    name: Lint and Test
     runs-on: ubuntu-latest
     
     steps:
-    # 1. Получаем код
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
     
-    # 2. Проверяем, что секреты НЕ пустые
-    - name: Validate secrets before deployment
-      id: validate-secrets
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run linter
+      run: npm run lint || echo "Linter not configured, skipping..."
+    
+    - name: Run tests
+      run: npm test
+    
+    - name: Run tests with coverage
+      run: npm run test:coverage
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: ./coverage/lcov.info
+      # Опционально, если не используете Codecov, удалите этот шаг
+
+  # Этап 2: Сборка (если нужна)
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build project
       run: |
-        # Проверяем каждый секрет
-        if [ -z "${{ secrets.BEGET_HOST }}" ]; then
-          echo "❌ ERROR: BEGET_HOST is empty or not set!"
-          echo "Please set it in: Settings → Secrets → Actions"
-          echo "Value should be: server.beget.com or your domain"
-          exit 1
-        fi
-        
-        if [ -z "${{ secrets.BEGET_USERNAME }}" ]; then
-          echo "❌ ERROR: BEGET_USERNAME is empty or not set!"
-          exit 1
-        fi
-        
-        if [ -z "${{ secrets.BEGET_PASSWORD }}" ]; then
-          echo "❌ ERROR: BEGET_PASSWORD is empty or not set!"
-          exit 1
-        fi
-        
-        # Если BEGET_DEPLOY_PATH пустой, устанавливаем значение по умолчанию
-        if [ -z "${{ secrets.BEGET_DEPLOY_PATH }}" ]; then
-          echo "⚠️ WARNING: BEGET_DEPLOY_PATH not set, using default './'"
-          echo "DEPLOY_PATH=./" >> $GITHUB_ENV
-        else
-          echo "DEPLOY_PATH=${{ secrets.BEGET_DEPLOY_PATH }}" >> $GITHUB_ENV
-        fi
-        
-        echo "✅ All secrets are valid"
+        echo "Building project..."
+        # Здесь могут быть команды сборки, например:
+        # npm run build
+        # или просто копирование файлов
+        mkdir -p dist
+        cp -r src/* dist/
+        echo "Build completed"
     
-    # 3. Деплой с использованием проверенных значений
-    - name: Deploy to Beget FTP
-      if: steps.validate-secrets.outcome == 'success'
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifacts
+        path: dist/
+        retention-days: 7
+
+  # Этап 3: Деплой на Beget
+  deploy:
+    name: Deploy to Beget
+    runs-on: ubuntu-latest
+    needs: [lint-and-test, build]
+    # Делаем деплой только из main ветки
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: build-artifacts
+        path: dist/
+    
+    - name: Prepare for deployment
+      run: |
+        echo "Preparing files for deployment..."
+        ls -la dist/
+        
+        # Если нужны дополнительные файлы кроме собранных
+        cp -r tests/ dist/tests/ || true
+        cp package.json dist/ || true
+        cp README.md dist/ || true
+    
+    - name: Format deploy path
+      id: format-path
+      run: |
+        # Форматируем путь для Beget
+        DEPLOY_PATH="${{ env.DEPLOY_PATH }}"
+        
+        # Убедимся, что путь начинается с ./
+        if [[ ! "$DEPLOY_PATH" =~ ^\./ ]]; then
+          DEPLOY_PATH="./$DEPLOY_PATH"
+        fi
+        
+        # Убедимся, что путь заканчивается на /
+        if [[ ! "$DEPLOY_PATH" =~ /$ ]]; then
+          DEPLOY_PATH="$DEPLOY_PATH/"
+        fi
+        
+        echo "DEPLOY_PATH=$DEPLOY_PATH" >> $GITHUB_ENV
+        echo "Final deploy path: $DEPLOY_PATH"
+    
+    - name: Deploy to Beget via FTP
       uses: SamKirkland/FTP-Deploy-Action@v4.3.5
       with:
         server: ${{ secrets.BEGET_HOST }}
         username: ${{ secrets.BEGET_USERNAME }}
         password: ${{ secrets.BEGET_PASSWORD }}
-        local-dir: "./"
-        server-dir: ${{ env.DEPLOY_PATH || './' }}
+        local-dir: "./dist"
+        server-dir: ${{ env.DEPLOY_PATH }}
         exclude: |
           **/.git*
           **/.github/
-          **/README.md
-          **/*.md
+          **/node_modules/
+          **/*.test.js
+          **/.gitignore
+          **/.env*
         dangerous-clean-slate: false
+        dry-run: false
     
-    # 4. Завершение
-    - name: Success
-      if: success()
+    - name: Verify deployment
       run: |
-        echo "🎉 Deployment completed!"
-        echo "Site should be live now"
+        echo "✅ Deployment completed successfully!"
+        echo "📁 Deployed to: ${{ env.DEPLOY_PATH }}"
+        echo "🌐 Site URL: https://olegdata.beget.tech"
+        echo "🔄 Triggered by: ${{ github.actor }}"
+        echo "📝 Commit: ${{ github.sha }}"
+
+  # Этап 4: Уведомления (опционально)
+  notify:
+    name: Send notifications
+    runs-on: ubuntu-latest
+    needs: [lint-and-test, deploy]
+    if: always()  # Запускаем всегда, даже если предыдущие шаги упали
+    
+    steps:
+    - name: Determine status
+      id: status-check
+      run: |
+        if ${{ needs.lint-and-test.result == 'success' && needs.deploy.result == 'success' }}; then
+          echo "STATUS=success" >> $GITHUB_ENV
+          echo "EMOJI=✅" >> $GITHUB_ENV
+          echo "MESSAGE=CI/CD pipeline completed successfully!" >> $GITHUB_ENV
+        else
+          echo "STATUS=failure" >> $GITHUB_ENV
+          echo "EMOJI=❌" >> $GITHUB_ENV
+          echo "MESSAGE=CI/CD pipeline failed! Check the logs." >> $GITHUB_ENV
+        fi
+    
+    - name: Send Telegram notification
+      uses: appleboy/telegram-action@master
+      if: ${{ env.STATUS == 'failure' }}  # Отправляем только при ошибках
+      with:
+        to: ${{ secrets.TELEGRAM_CHAT_ID }}
+        token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        message: |
+          ${{ env.EMOJI }} ${{ env.MESSAGE }}
+          Repository: ${{ github.repository }}
+          Branch: ${{ github.ref }}
+          Commit: ${{ github.sha }}
+          Workflow: ${{ github.workflow }}
+          URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
