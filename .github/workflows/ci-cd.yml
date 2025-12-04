@@ -156,25 +156,25 @@ jobs:
         echo "📝 Commit: ${{ github.sha }}"
 
   # Этап 4: Уведомления (опционально)
-  notify:
-    name: Send notifications
-    runs-on: ubuntu-latest
-    needs: [lint-and-test, deploy]
-    if: always()  # Запускаем всегда, даже если предыдущие шаги упали
+  # notify:
+  #   name: Send notifications
+  #   runs-on: ubuntu-latest
+  #   needs: [lint-and-test, deploy]
+  #   if: always()  # Запускаем всегда, даже если предыдущие шаги упали
     
-    steps:
-    - name: Determine status
-      id: status-check
-      run: |
-        if ${{ needs.lint-and-test.result == 'success' && needs.deploy.result == 'success' }}; then
-          echo "STATUS=success" >> $GITHUB_ENV
-          echo "EMOJI=✅" >> $GITHUB_ENV
-          echo "MESSAGE=CI/CD pipeline completed successfully!" >> $GITHUB_ENV
-        else
-          echo "STATUS=failure" >> $GITHUB_ENV
-          echo "EMOJI=❌" >> $GITHUB_ENV
-          echo "MESSAGE=CI/CD pipeline failed! Check the logs." >> $GITHUB_ENV
-        fi
+  #   steps:
+  #   - name: Determine status
+  #     id: status-check
+  #     run: |
+  #       if ${{ needs.lint-and-test.result == 'success' && needs.deploy.result == 'success' }}; then
+  #         echo "STATUS=success" >> $GITHUB_ENV
+  #         echo "EMOJI=✅" >> $GITHUB_ENV
+  #         echo "MESSAGE=CI/CD pipeline completed successfully!" >> $GITHUB_ENV
+  #       else
+  #         echo "STATUS=failure" >> $GITHUB_ENV
+  #         echo "EMOJI=❌" >> $GITHUB_ENV
+  #         echo "MESSAGE=CI/CD pipeline failed! Check the logs." >> $GITHUB_ENV
+  #       fi
     
     # - name: Send Telegram notification
     #   uses: appleboy/telegram-action@master
