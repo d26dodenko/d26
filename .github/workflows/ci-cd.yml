@@ -176,16 +176,16 @@ jobs:
           echo "MESSAGE=CI/CD pipeline failed! Check the logs." >> $GITHUB_ENV
         fi
     
-    - name: Send Telegram notification
-      uses: appleboy/telegram-action@master
-      if: ${{ env.STATUS == 'failure' }}  # Отправляем только при ошибках
-      with:
-        to: ${{ secrets.TELEGRAM_CHAT_ID }}
-        token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        message: |
-          ${{ env.EMOJI }} ${{ env.MESSAGE }}
-          Repository: ${{ github.repository }}
-          Branch: ${{ github.ref }}
-          Commit: ${{ github.sha }}
-          Workflow: ${{ github.workflow }}
-          URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    # - name: Send Telegram notification
+    #   uses: appleboy/telegram-action@master
+    #   if: ${{ env.STATUS == 'failure' }}  # Отправляем только при ошибках
+    #   with:
+    #     to: ${{ secrets.TELEGRAM_CHAT_ID }}
+    #     token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+    #     message: |
+    #       ${{ env.EMOJI }} ${{ env.MESSAGE }}
+    #       Repository: ${{ github.repository }}
+    #       Branch: ${{ github.ref }}
+    #       Commit: ${{ github.sha }}
+    #       Workflow: ${{ github.workflow }}
+    #       URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
