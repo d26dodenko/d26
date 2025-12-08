@@ -114,11 +114,11 @@ jobs:
       id: format-path
       run: |
         # Форматируем путь для Beget
-        DEPLOY_PATH="${{ env.DEPLOY_PATH }}"
+        DEPLOY_PATH="${{ env.DEPLOY_PATH }}/"
         
         # Убедимся, что путь начинается с ./
         if [[ ! "$DEPLOY_PATH" =~ ^\./ ]]; then
-          DEPLOY_PATH="./$DEPLOY_PATH"
+          DEPLOY_PATH="./$DEPLOY_PATH/"
         fi
         
         # Убедимся, что путь заканчивается на /
