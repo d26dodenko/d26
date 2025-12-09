@@ -1,3 +1,4 @@
+const { describe, test, expect } = require('@jest/globals');
 const { add, subtract, multiply, divide, factorial } = require('../src/math');
 
 describe('Math functions', () => {
