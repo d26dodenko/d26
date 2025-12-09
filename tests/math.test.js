@@ -44,7 +44,7 @@ describe('Math functions', () => {
     test('должна умножать числа', () => {
       expect(multiply(2, 3)).toBe(6);
       expect(multiply(5, 0)).toBe(0);
-      expect(multiply(-2, 3)).toBe(-6);
+      expect(multiply(-2, 6)).toBe(-6);
     });
 
     test('должна умножать десятичные числа', () => {

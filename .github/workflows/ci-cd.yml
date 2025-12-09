@@ -167,6 +167,6 @@ jobs:
       run: |
         echo "✅ Deployment completed successfully!"
         echo "📁 Deployed to: ${{ env.DEPLOY_PATH }}"
-        echo "🌐 Site URL: https://olegdata.beget.tech"
+        echo "🌐 Site URL: http://olegdata.beget.tech"
         echo "🔄 Triggered by: ${{ github.actor }}"
         echo "📝 Commit: ${{ github.sha }}"
